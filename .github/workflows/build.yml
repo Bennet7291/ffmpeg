@@ -156,11 +156,26 @@ jobs:
             mingw-w64-x86_64-freetype
             mingw-w64-x86_64-fontconfig
 
-      - name: Configure FFmpeg
-        shell: ${{ matrix.platform == 'windows' && 'msys2 {0}' || 'bash' }}
+      - name: Configure FFmpeg (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
         run: |
           cd ffmpeg
+      
+          ./configure \
+            $COMMON_FLAGS \
+            --arch=x86_64 \
+            --target-os=mingw32 \
+            --enable-d3d11va \
+            --enable-dxva2 \
+            --enable-mediafoundation
 
+      - name: Configure FFmpeg (Linux/macOS)
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: |
+          cd ffmpeg
+      
           if [ "${{ matrix.platform }}" = "linux" ]; then
             ./configure \
               $COMMON_FLAGS \
@@ -170,7 +185,7 @@ jobs:
               --enable-vulkan \
               --enable-alsa \
               --enable-libpipewire
-
+      
           elif [ "${{ matrix.platform }}" = "macos" ]; then
             ./configure \
               $COMMON_FLAGS \
@@ -178,21 +193,18 @@ jobs:
               --enable-videotoolbox \
               --enable-audiotoolbox \
               --enable-metal
-
-          elif [ "${{ matrix.platform }}" = "windows" ]; then
-            ./configure \
-              $COMMON_FLAGS \
-              --arch=x86_64 \
-              --target-os=mingw32 \
-              --enable-cross-compile \
-              --cc=x86_64-w64-mingw32-gcc \
-              --enable-d3d11va \
-              --enable-dxva2 \
-              --enable-mediafoundation
           fi
 
-      - name: Compile
-        shell: ${{ matrix.platform == 'windows' && 'msys2 {0}' || 'bash' }}
+      - name: Compile (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          cd ffmpeg
+          make -j$(nproc)
+      
+      - name: Compile (Linux/macOS)
+        if: matrix.platform != 'windows'
+        shell: bash
         run: |
           cd ffmpeg
           make -j$(nproc)
