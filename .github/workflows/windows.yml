@@ -1,0 +1,148 @@
+name: Build FFmpeg Windows
+
+on:
+  workflow_dispatch:
+
+env:
+  FFMPEG_VERSION: n8.1.2
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    env:
+      COMMON_FLAGS: >
+        --enable-gpl
+        --enable-version3
+        --enable-nonfree
+        --enable-libdav1d
+        --enable-libsvtav1
+        --enable-libvpx
+        --enable-libx264
+        --enable-libx265
+        --enable-libopus
+        --enable-libmp3lame
+        --enable-libfdk-aac
+        --enable-libass
+        --enable-libjxl
+        --enable-openssl
+        --enable-libsrt
+        --enable-libzimg
+        --enable-libplacebo
+        --enable-libfreetype
+        --enable-libfontconfig
+        --enable-zlib
+
+    steps:
+      - name: Install MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            git
+            make
+            diffutils
+            pkgconf
+            nasm
+            yasm
+            zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-yasm
+            mingw-w64-x86_64-dav1d
+            mingw-w64-x86_64-svt-av1
+            mingw-w64-x86_64-libvpx
+            mingw-w64-x86_64-x264
+            mingw-w64-x86_64-x265
+            mingw-w64-x86_64-opus
+            mingw-w64-x86_64-lame
+            mingw-w64-x86_64-fdk-aac
+            mingw-w64-x86_64-libass
+            mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-libwebp
+            mingw-w64-x86_64-libjxl
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-srt
+            mingw-w64-x86_64-zimg
+            mingw-w64-x86_64-libplacebo
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-fontconfig
+
+      - name: Checkout FFmpeg
+        shell: msys2 {0}
+        run: |
+          git clone \
+            --depth 1 \
+            --branch "$FFMPEG_VERSION" \
+            https://github.com/FFmpeg/FFmpeg.git
+
+      - name: Show pkg-config versions
+        shell: msys2 {0}
+        run: |
+          export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+
+          pkg-config --version
+
+          for p in \
+            dav1d \
+            SvtAv1Enc \
+            vpx \
+            x264 \
+            x265 \
+            opus \
+            lame \
+            fdk-aac \
+            libass \
+            libjxl \
+            openssl \
+            srt \
+            zimg \
+            libplacebo \
+            freetype2 \
+            fontconfig
+          do
+            echo "========== $p =========="
+            pkg-config --modversion "$p" || true
+          done
+
+      - name: Configure
+        shell: msys2 {0}
+        run: |
+          export PATH=/mingw64/bin:$PATH
+          export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+
+          cd ffmpeg
+
+          ./configure \
+            $COMMON_FLAGS \
+            --prefix=/mingw64 \
+            --arch=x86_64 \
+            --target-os=mingw32 \
+            --pkg-config=pkg-config \
+            --enable-d3d11va \
+            --enable-dxva2 \
+            --enable-mediafoundation
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          export PATH=/mingw64/bin:$PATH
+          cd ffmpeg
+          make -j4
+
+      - name: Package
+        shell: msys2 {0}
+        run: |
+          mkdir package
+          cp ffmpeg/ffmpeg.exe package/
+          cp ffmpeg/ffprobe.exe package/
+          cd package
+          zip ../ffmpeg-windows-x64.zip *
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-windows-x64
+          path: ffmpeg-windows-x64.zip
