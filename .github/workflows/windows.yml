@@ -107,6 +107,19 @@ jobs:
             pkg-config --modversion "$p" || true
           done
 
+      - name: Check libplacebo
+        shell: msys2 {0}
+        run: |
+          export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+      
+          pacman -Qi mingw-w64-x86_64-libplacebo || true
+      
+          echo "==== files ===="
+          ls /mingw64/lib/pkgconfig | grep placebo || true
+      
+          echo "==== pkg-config ===="
+          pkg-config --modversion libplacebo || true
+
       - name: Configure
         shell: msys2 {0}
         run: |
