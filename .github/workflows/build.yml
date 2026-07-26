@@ -1,0 +1,225 @@
+name: Build FFmpeg Multi Platform
+
+on:
+  workflow_dispatch:
+env:
+  FFMPEG_VERSION: n8.0
+
+  COMMON_FLAGS: >
+    --enable-gpl
+    --enable-version3
+    --enable-libdav1d
+    --enable-libsvtav1
+    --enable-libvpx
+    --enable-libx264
+    --enable-libx265
+    --enable-libopus
+    --enable-libmp3lame
+    --enable-libfdk-aac
+    --enable-libass
+    --enable-libjpegxl
+    --enable-libwebp
+    --enable-libpng
+    --enable-openssl
+    --enable-libsrt
+    --enable-libzimg
+    --enable-libplacebo
+    --enable-libfreetype
+    --enable-libfontconfig
+    --enable-zlib
+
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+
+          - name: macos-arm64
+            os: macos-14
+            platform: macos
+            arch: arm64
+
+          - name: windows-x64
+            os: windows-2022
+            platform: windows
+            arch: x86_64
+
+          - name: linux-amd64
+            os: ubuntu-24.04
+            platform: linux
+            arch: x86_64
+
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    steps:
+
+      - name: Checkout FFmpeg
+        run: |
+          git clone \
+            --depth 1 \
+            --branch $FFMPEG_VERSION \
+            https://git.ffmpeg.org/ffmpeg.git
+
+      - name: Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt update
+
+          sudo apt install -y \
+            build-essential \
+            pkg-config \
+            nasm \
+            yasm \
+            zip \
+            libdav1d-dev \
+            libsvtav1-dev \
+            libvpx-dev \
+            libx264-dev \
+            libx265-dev \
+            libopus-dev \
+            libmp3lame-dev \
+            libfdk-aac-dev \
+            libass-dev \
+            libjpeg-turbo8-dev \
+            libpng-dev \
+            libwebp-dev \
+            libjxl-dev \
+            libssl-dev \
+            libsrt-dev \
+            libzimg-dev \
+            libplacebo-dev \
+            libfreetype-dev \
+            libfontconfig1-dev \
+            zlib1g-dev \
+            libva-dev \
+            libdrm-dev \
+            libvulkan-dev \
+            libasound2-dev \
+            libpipewire-0.3-dev
+
+      - name: macOS dependencies
+        if: matrix.platform == 'macos'
+        run: |
+          brew install \
+            nasm \
+            pkg-config \
+            dav1d \
+            svtav1 \
+            libvpx \
+            x264 \
+            x265 \
+            opus \
+            lame \
+            fdk-aac \
+            libass \
+            jpeg-turbo \
+            libpng \
+            webp \
+            jpeg-xl \
+            openssl \
+            srt \
+            zimg \
+            libplacebo \
+            freetype \
+            fontconfig
+
+      - name: Windows dependencies
+        if: matrix.platform == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-yasm
+            mingw-w64-x86_64-dav1d
+            mingw-w64-x86_64-svt-av1
+            mingw-w64-x86_64-libvpx
+            mingw-w64-x86_64-x264
+            mingw-w64-x86_64-x265
+            mingw-w64-x86_64-opus
+            mingw-w64-x86_64-lame
+            mingw-w64-x86_64-fdk-aac
+            mingw-w64-x86_64-libass
+            mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-libwebp
+            mingw-w64-x86_64-libjxl
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-libsrt
+            mingw-w64-x86_64-zimg
+            mingw-w64-x86_64-libplacebo
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-fontconfig
+
+      - name: Configure FFmpeg
+        shell: ${{ matrix.platform == 'windows' && 'msys2 {0}' || 'bash' }}
+        run: |
+          cd ffmpeg
+
+          if [ "${{ matrix.platform }}" = "linux" ]; then
+            ./configure \
+              $COMMON_FLAGS \
+              --arch=x86_64 \
+              --enable-vaapi \
+              --enable-libdrm \
+              --enable-vulkan \
+              --enable-alsa \
+              --enable-libpipewire
+
+          elif [ "${{ matrix.platform }}" = "macos" ]; then
+            ./configure \
+              $COMMON_FLAGS \
+              --arch=arm64 \
+              --enable-videotoolbox \
+              --enable-audiotoolbox \
+              --enable-metal
+
+          elif [ "${{ matrix.platform }}" = "windows" ]; then
+            ./configure \
+              $COMMON_FLAGS \
+              --arch=x86_64 \
+              --target-os=mingw32 \
+              --enable-cross-compile \
+              --cc=x86_64-w64-mingw32-gcc \
+              --enable-d3d11va \
+              --enable-dxva2 \
+              --enable-mediafoundation
+          fi
+
+      - name: Compile
+        shell: ${{ matrix.platform == 'windows' && 'msys2 {0}' || 'bash' }}
+        run: |
+          cd ffmpeg
+          make -j$(nproc)
+
+      - name: Package
+        shell: bash
+        run: |
+
+          mkdir package
+
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            cp ffmpeg/ffmpeg.exe package/
+            cp ffmpeg/ffprobe.exe package/
+          else
+            cp ffmpeg/ffmpeg package/
+            cp ffmpeg/ffprobe package/
+          fi
+
+          cd package
+
+          zip \
+            ../ffmpeg-${{ matrix.name }}.zip \
+            *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.name }}
+          path: ffmpeg-${{ matrix.name }}.zip
+          retention-days: 15
