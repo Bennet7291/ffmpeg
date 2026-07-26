@@ -2,9 +2,9 @@ name: Build FFmpeg Windows
 
 on:
   workflow_dispatch:
+
 env:
   FFMPEG_VERSION: n8.1.2
-
   COMMON_FLAGS: >
     --enable-gpl
     --enable-version3
@@ -38,12 +38,10 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-
           install: >
             git
             make
             zip
-            diffutils
             pkgconf
             nasm
             yasm
@@ -63,6 +61,11 @@ jobs:
             mingw-w64-x86_64-srt
             mingw-w64-x86_64-zimg
             mingw-w64-x86_64-libplacebo
+            mingw-w64-x86_64-shaderc
+            mingw-w64-x86_64-spirv-cross
+            mingw-w64-x86_64-spirv-tools
+            mingw-w64-x86_64-vulkan
+            mingw-w64-x86_64-vulkan-headers
             mingw-w64-x86_64-freetype
             mingw-w64-x86_64-fontconfig
 
@@ -74,35 +77,14 @@ jobs:
             --branch "$FFMPEG_VERSION" \
             https://github.com/FFmpeg/FFmpeg.git
 
-      - name: Verify dependencies
+      - name: Check dependencies
         shell: msys2 {0}
         run: |
           export PATH=/mingw64/bin:$PATH
           export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig
           export PKG_CONFIG_LIBDIR=/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig
-          echo "pkg-config:"
-          which pkg-config
-          pkg-config --version
-
-          echo "libplacebo:"
           pkg-config --exists --print-errors "libplacebo >= 5.229.0"
-          echo "other libs:"
-
-          pkg-config --modversion dav1d
-          pkg-config --modversion SvtAv1Enc
-          pkg-config --modversion vpx
-          pkg-config --modversion x264
-          pkg-config --modversion x265
-          pkg-config --modversion opus
-          pkg-config --modversion lame
-          pkg-config --modversion fdk-aac
-          pkg-config --modversion libass
-          pkg-config --modversion libjxl
-          pkg-config --modversion srt
-          pkg-config --modversion zimg
-          pkg-config --modversion libplacebo
-          pkg-config --modversion freetype2
-          pkg-config --modversion fontconfig
+          pkg-config --libs --cflags "libplacebo >= 5.229.0"
 
       - name: Configure FFmpeg
         shell: msys2 {0}
@@ -120,12 +102,13 @@ jobs:
             --enable-dxva2 \
             --enable-mediafoundation
 
-      - name: Build FFmpeg
+      - name: Build
         shell: msys2 {0}
         run: |
           export PATH=/mingw64/bin:$PATH
           cd ffmpeg
           make -j$(nproc)
+
       - name: Package
         shell: msys2 {0}
         run: |
@@ -133,11 +116,9 @@ jobs:
           cp ffmpeg/ffmpeg.exe package/
           cp ffmpeg/ffprobe.exe package/
           cd package
-          zip \
-            ../ffmpeg-windows-x64.zip \
-            *
+          zip ../ffmpeg-windows-x64.zip *
 
-      - name: Upload artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-windows-x64
