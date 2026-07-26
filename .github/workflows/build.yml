@@ -57,11 +57,12 @@ jobs:
     steps:
 
       - name: Checkout FFmpeg
+        shell: bash
         run: |
           git clone \
             --depth 1 \
             --branch $FFMPEG_VERSION \
-            https://git.ffmpeg.org/ffmpeg.git
+            https://github.com/FFmpeg/FFmpeg.git
 
       - name: Linux dependencies
         if: matrix.platform == 'linux'
@@ -107,7 +108,7 @@ jobs:
             nasm \
             pkg-config \
             dav1d \
-            svtav1 \
+            svt-av1 \
             libvpx \
             x264 \
             x265 \
