@@ -17,7 +17,7 @@ env:
     --enable-libmp3lame
     --enable-libfdk-aac
     --enable-libass
-    --enable-libjpegxl
+    --enable-libjxl
     --enable-libwebp
     --enable-libpng
     --enable-openssl
@@ -89,7 +89,7 @@ jobs:
             libwebp-dev \
             libjxl-dev \
             libssl-dev \
-            libsrt-dev \
+            libsrt-openssl-dev \
             libzimg-dev \
             libplacebo-dev \
             libfreetype-dev \
@@ -151,7 +151,7 @@ jobs:
             mingw-w64-x86_64-libwebp
             mingw-w64-x86_64-libjxl
             mingw-w64-x86_64-openssl
-            mingw-w64-x86_64-libsrt
+            mingw-w64-x86_64-srt
             mingw-w64-x86_64-zimg
             mingw-w64-x86_64-libplacebo
             mingw-w64-x86_64-freetype
