@@ -18,8 +18,6 @@ env:
     --enable-libfdk-aac
     --enable-libass
     --enable-libjxl
-    --enable-libwebp
-    --enable-libpng
     --enable-openssl
     --enable-libsrt
     --enable-libzimg
@@ -191,9 +189,7 @@ jobs:
             ./configure \
               $COMMON_FLAGS \
               --arch=arm64 \
-              --enable-videotoolbox \
-              --enable-audiotoolbox \
-              --enable-metal
+              --enable-videotoolbox
           fi
 
       - name: Compile (Windows)
